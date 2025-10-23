@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <DUT Name="ST_TestResults" Id="{e5f6a7b8-5678-9abc-def0-123456789012}">
+    <Declaration><![CDATA[TYPE ST_TestResults :
+STRUCT
+    // Test counters
+    iTestsTotal     : INT;      // Total number of tests
+    iTestsPassed    : INT;      // Number of passed tests
+    iTestsFailed    : INT;      // Number of failed tests
+
+    // Current test info
+    sCurrentTest    : STRING;   // Current test name
+    bTestRunning    : BOOL;     // Test is running
+    bAllTestsPassed : BOOL;     // All tests passed flag
+
+    // Individual test results
+    bCounterTest    : BOOL;     // Counter FB test result
+    bTimerTest      : BOOL;     // Timer FB test result
+    bStateMachineTest : BOOL;   // State machine FB test result
+
+    // Error messages
+    sLastError      : STRING;   // Last error message
+END_STRUCT
+END_TYPE
+]]>
+    </Declaration>
+  </DUT>
+</TcPlcObject>

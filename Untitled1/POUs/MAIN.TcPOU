@@ -3,11 +3,94 @@
   <POU Name="MAIN" Id="{f9fe8724-132d-4104-9ec4-2606e5e51cd0}">
     <Declaration><![CDATA[PROGRAM MAIN
 VAR
+    // Test mode selection
+    bAutoTest       : BOOL := TRUE;     // Run automated tests
+    bManualTest     : BOOL := FALSE;    // Run manual tests
+
+    // Automated test runner
+    fbTestRunner    : FB_TestRunner;
+    bRunTests       : BOOL;             // Trigger to start tests
+    bResetTests     : BOOL;             // Reset test results
+
+    // Manual test instances
+    fbCounter       : FB_Counter;
+    fbTimer         : FB_CustomTimer;
+    fbStateMachine  : FB_StateMachine;
+
+    // Manual test controls
+    bCounterEnable  : BOOL;
+    bCountUp        : BOOL;
+    bCountDown      : BOOL;
+    bTimerStart     : BOOL;
+    bTimerReset     : BOOL;
+    bMachineStart   : BOOL;
+    bMachineStop    : BOOL;
+    bMachinePause   : BOOL;
+    bMachineReset   : BOOL;
 END_VAR
 ]]>
     </Declaration>
     <Implementation>
-      <ST><![CDATA[]]></ST>
+      <ST><![CDATA[//==============================================================================
+// FB Test Program - MAIN
+// Description: Tests all generated Function Blocks
+// Mode: Auto (automated tests) or Manual (interactive testing)
+//==============================================================================
+
+IF bAutoTest THEN
+    //--------------------------------------------------------------------------
+    // AUTOMATED TESTING MODE
+    //--------------------------------------------------------------------------
+    // Run the automated test suite
+    fbTestRunner(
+        bRunTests := bRunTests,
+        bResetTests := bResetTests
+    );
+
+    // Display test results in watch window:
+    // fbTestRunner.stResults.sCurrentTest
+    // fbTestRunner.stResults.iTestsPassed
+    // fbTestRunner.stResults.iTestsFailed
+    // fbTestRunner.stResults.bAllTestsPassed
+
+ELSIF bManualTest THEN
+    //--------------------------------------------------------------------------
+    // MANUAL TESTING MODE
+    //--------------------------------------------------------------------------
+
+    // Test Counter FB
+    fbCounter(
+        bEnable := bCounterEnable,
+        bReset := FALSE,
+        bCountUp := bCountUp,
+        bCountDown := bCountDown,
+        iMin := 0,
+        iMax := 100
+    );
+
+    // Test Timer FB
+    fbTimer(
+        bStart := bTimerStart,
+        bStop := FALSE,
+        bReset := bTimerReset,
+        tSetTime := T#5S
+    );
+
+    // Test State Machine FB
+    fbStateMachine(
+        bStart := bMachineStart,
+        bStop := bMachineStop,
+        bPause := bMachinePause,
+        bReset := bMachineReset,
+        bEmergency := FALSE
+    );
+
+    // Watch these variables to see the results:
+    // fbCounter.iCount, fbCounter.bMaxReached, fbCounter.bMinReached
+    // fbTimer.tElapsed, fbTimer.rProgress, fbTimer.bDone
+    // fbStateMachine.eState, fbStateMachine.sStateText, fbStateMachine.iCycles
+END_IF
+]]></ST>
     </Implementation>
   </POU>
 </TcPlcObject>

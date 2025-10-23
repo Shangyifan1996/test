@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_Counter" Id="{a1b2c3d4-1234-5678-9abc-def012345678}">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_Counter
+VAR_INPUT
+    bEnable     : BOOL;     // Enable counter
+    bReset      : BOOL;     // Reset counter to 0
+    bCountUp    : BOOL;     // Count up trigger
+    bCountDown  : BOOL;     // Count down trigger
+    iMin        : INT := 0; // Minimum value
+    iMax        : INT := 100; // Maximum value
+END_VAR
+
+VAR_OUTPUT
+    iCount      : INT;      // Current count value
+    bMinReached : BOOL;     // TRUE when min value reached
+    bMaxReached : BOOL;     // TRUE when max value reached
+    bError      : BOOL;     // Error flag
+    sErrorMsg   : STRING;   // Error message
+END_VAR
+
+VAR
+    bCountUpOld   : BOOL;   // Previous state of count up
+    bCountDownOld : BOOL;   // Previous state of count down
+END_VAR
+]]>
+    </Declaration>
+    <Implementation>
+      <ST><![CDATA[// Reset counter
+IF bReset THEN
+    iCount := 0;
+    bError := FALSE;
+    sErrorMsg := '';
+    bMinReached := FALSE;
+    bMaxReached := FALSE;
+    bCountUpOld := FALSE;
+    bCountDownOld := FALSE;
+    RETURN;
+END_IF
+
+// Check for valid range
+IF iMin > iMax THEN
+    bError := TRUE;
+    sErrorMsg := 'Error: Min > Max';
+    RETURN;
+END_IF
+
+// Counter logic when enabled
+IF bEnable THEN
+    // Count up on rising edge
+    IF bCountUp AND NOT bCountUpOld THEN
+        IF iCount < iMax THEN
+            iCount := iCount + 1;
+        ELSE
+            bMaxReached := TRUE;
+        END_IF
+    END_IF
+
+    // Count down on rising edge
+    IF bCountDown AND NOT bCountDownOld THEN
+        IF iCount > iMin THEN
+            iCount := iCount - 1;
+        ELSE
+            bMinReached := TRUE;
+        END_IF
+    END_IF
+
+    // Update boundary flags
+    bMinReached := (iCount <= iMin);
+    bMaxReached := (iCount >= iMax);
+ELSE
+    // Disabled - maintain current value
+END_IF
+
+// Store previous states
+bCountUpOld := bCountUp;
+bCountDownOld := bCountDown;
+]]>
+      </ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>
