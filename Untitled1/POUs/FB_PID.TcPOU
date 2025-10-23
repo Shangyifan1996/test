@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_PID" Id="{f6a7b8c9-d0e1-2345-f012-456789012345}">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_PID
+VAR_INPUT
+    bEnable : BOOL;          // 使能控制
+    rSetpoint : REAL;        // 设定值
+    rActual : REAL;          // 实际值
+    rKp : REAL := 1.0;       // 比例系数
+    rKi : REAL := 0.1;       // 积分系数
+    rKd : REAL := 0.01;      // 微分系数
+    rOutMax : REAL := 100.0; // 输出上限
+    rOutMin : REAL := 0.0;   // 输出下限
+    tCycle : TIME := T#100MS;// 控制周期
+    bReset : BOOL;           // 复位
+END_VAR
+VAR_OUTPUT
+    rOutput : REAL;          // PID输出
+    rError : REAL;           // 当前误差
+END_VAR
+VAR
+    rErrorLast : REAL;       // 上次误差
+    rIntegral : REAL;        // 积分累积
+    rDerivative : REAL;      // 微分项
+    rProportional : REAL;    // 比例项
+    rCycleTime : REAL;       // 周期时间(秒)
+END_VAR
+]]>
+    </Declaration>
+    <Implementation>
+      <ST><![CDATA[// 经典PID控制器功能块
+// 功能：比例-积分-微分控制
+
+// 复位
+IF bReset OR NOT bEnable THEN
+    rIntegral := 0;
+    rErrorLast := 0;
+    rOutput := 0;
+    rError := 0;
+    RETURN;
+END_IF
+
+// 计算周期时间(转换为秒)
+rCycleTime := TIME_TO_REAL(tCycle) / 1000.0;
+
+// 计算误差
+rError := rSetpoint - rActual;
+
+// 比例项
+rProportional := rKp * rError;
+
+// 积分项
+rIntegral := rIntegral + (rKi * rError * rCycleTime);
+
+// 积分限幅(抗积分饱和)
+IF rIntegral > rOutMax THEN
+    rIntegral := rOutMax;
+ELSIF rIntegral < rOutMin THEN
+    rIntegral := rOutMin;
+END_IF
+
+// 微分项
+rDerivative := rKd * (rError - rErrorLast) / rCycleTime;
+
+// 计算总输出
+rOutput := rProportional + rIntegral + rDerivative;
+
+// 输出限幅
+IF rOutput > rOutMax THEN
+    rOutput := rOutMax;
+ELSIF rOutput < rOutMin THEN
+    rOutput := rOutMin;
+END_IF
+
+// 保存当前误差
+rErrorLast := rError;
+]]></ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>

@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_Alarm" Id="{d4e5f6a7-b8c9-0123-def0-234567890123}">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_Alarm
+VAR_INPUT
+    bTrigger : BOOL;         // 报警触发信号
+    bAcknowledge : BOOL;     // 报警确认信号
+    sAlarmText : STRING(80); // 报警文本
+    iPriority : INT := 1;    // 报警优先级 (1=低, 2=中, 3=高)
+END_VAR
+VAR_OUTPUT
+    bAlarmActive : BOOL;     // 报警激活
+    bAlarmPending : BOOL;    // 报警待确认
+    dtAlarmTime : DT;        // 报警时间
+    iAlarmCount : INT;       // 报警次数
+END_VAR
+VAR
+    rTrigAlarm : R_TRIG;     // 报警上升沿
+    rTrigAck : R_TRIG;       // 确认上升沿
+    bAlarmLatch : BOOL;      // 报警锁存
+END_VAR
+]]>
+    </Declaration>
+    <Implementation>
+      <ST><![CDATA[// 经典报警处理功能块
+// 功能：报警触发、确认、计数、时间戳
+
+// 检测报警触发
+rTrigAlarm(CLK := bTrigger);
+IF rTrigAlarm.Q THEN
+    bAlarmLatch := TRUE;
+    bAlarmActive := TRUE;
+    bAlarmPending := TRUE;
+    dtAlarmTime := DT#1970-1-1-0:0:0; // 获取系统时间
+    iAlarmCount := iAlarmCount + 1;
+END_IF
+
+// 报警确认
+rTrigAck(CLK := bAcknowledge);
+IF rTrigAck.Q AND bAlarmPending THEN
+    bAlarmPending := FALSE;
+    IF NOT bTrigger THEN
+        bAlarmActive := FALSE;
+        bAlarmLatch := FALSE;
+    END_IF
+END_IF
+
+// 如果报警信号消失且已确认，清除报警
+IF NOT bTrigger AND NOT bAlarmPending AND bAlarmLatch THEN
+    bAlarmActive := FALSE;
+    bAlarmLatch := FALSE;
+END_IF
+
+// 持续报警信号
+IF bTrigger THEN
+    bAlarmActive := TRUE;
+END_IF
+]]></ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>

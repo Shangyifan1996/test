@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_ScaleValue" Id="{b8c9d0e1-f2a3-4567-1234-678901234567}">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_ScaleValue
+VAR_INPUT
+    rInput : REAL;           // 输入值
+    rInputMin : REAL := 0.0; // 输入范围最小值
+    rInputMax : REAL := 100.0; // 输入范围最大值
+    rOutputMin : REAL := 0.0; // 输出范围最小值
+    rOutputMax : REAL := 100.0; // 输出范围最大值
+    bLimitOutput : BOOL := TRUE; // 是否限制输出
+END_VAR
+VAR_OUTPUT
+    rOutput : REAL;          // 缩放后的输出值
+    bError : BOOL;           // 错误标志
+END_VAR
+VAR
+    rScale : REAL;           // 缩放系数
+    rOffset : REAL;          // 偏移量
+END_VAR
+]]>
+    </Declaration>
+    <Implementation>
+      <ST><![CDATA[// 经典数值缩放功能块
+// 功能：将输入值从一个范围线性缩放到另一个范围
+
+bError := FALSE;
+
+// 检查输入范围是否有效
+IF ABS(rInputMax - rInputMin) < 0.0001 THEN
+    bError := TRUE;
+    rOutput := 0;
+    RETURN;
+END_IF
+
+// 计算缩放系数和偏移量
+rScale := (rOutputMax - rOutputMin) / (rInputMax - rInputMin);
+rOffset := rOutputMin - (rInputMin * rScale);
+
+// 线性缩放
+rOutput := (rInput * rScale) + rOffset;
+
+// 限制输出范围
+IF bLimitOutput THEN
+    IF rOutputMax > rOutputMin THEN
+        IF rOutput > rOutputMax THEN
+            rOutput := rOutputMax;
+        ELSIF rOutput < rOutputMin THEN
+            rOutput := rOutputMin;
+        END_IF
+    ELSE
+        IF rOutput < rOutputMax THEN
+            rOutput := rOutputMax;
+        ELSIF rOutput > rOutputMin THEN
+            rOutput := rOutputMin;
+        END_IF
+    END_IF
+END_IF
+]]></ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>

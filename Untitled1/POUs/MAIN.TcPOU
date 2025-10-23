@@ -3,11 +3,123 @@
   <POU Name="MAIN" Id="{f9fe8724-132d-4104-9ec4-2606e5e51cd0}">
     <Declaration><![CDATA[PROGRAM MAIN
 VAR
+    // TwinCAT3 经典功能块实例
+    fbBlink : FB_Blink;                    // 闪烁功能块
+    fbCounter : FB_Counter;                // 计数器功能块
+    fbMotorControl : FB_MotorControl;      // 电机控制功能块
+    fbAlarm : FB_Alarm;                    // 报警处理功能块
+    fbAverage : FB_Average;                // 平均值计算功能块
+    fbPID : FB_PID;                        // PID控制器功能块
+    fbHysteresis : FB_Hysteresis;          // 滞后功能块
+    fbScaleValue : FB_ScaleValue;          // 数值缩放功能块
+    fbFilter : FB_Filter;                  // 滤波器功能块
+    fbEdgeDetection : FB_EdgeDetection;    // 边沿检测功能块
+
+    // 测试变量
+    bTestInput : BOOL;                     // 测试输入
+    rTestValue : REAL := 50.0;             // 测试实数值
+    iCounter : INT;                        // 计数器
 END_VAR
 ]]>
     </Declaration>
     <Implementation>
-      <ST><![CDATA[]]></ST>
+      <ST><![CDATA[// ==========================================
+// TwinCAT3 经典功能块集合 - 使用示例
+// ==========================================
+
+// 1. 闪烁功能块示例 - 1秒亮，0.5秒灭
+fbBlink(
+    bEnable := TRUE,
+    tOnTime := T#1S,
+    tOffTime := T#500MS
+);
+
+// 2. 计数器功能块示例
+fbCounter(
+    bCountUp := fbBlink.bOutput,      // 使用闪烁信号计数
+    bCountDown := FALSE,
+    bReset := FALSE,
+    iMaxValue := 100,
+    iMinValue := 0
+);
+
+// 3. 边沿检测示例
+fbEdgeDetection(
+    bInput := fbBlink.bOutput,
+    bReset := FALSE
+);
+
+// 4. 电机控制示例
+fbMotorControl(
+    bStart := TRUE,
+    bStop := FALSE,
+    bEmergencyStop := FALSE,
+    bForward := TRUE,
+    bReverse := FALSE,
+    tStartDelay := T#2S
+);
+
+// 5. 报警处理示例
+fbAlarm(
+    bTrigger := fbCounter.bMaxReached,
+    bAcknowledge := FALSE,
+    sAlarmText := '计数器达到最大值',
+    iPriority := 2
+);
+
+// 6. 平均值计算示例
+fbAverage(
+    rInput := rTestValue,
+    iSamples := 10,
+    bReset := FALSE
+);
+
+// 7. PID控制器示例
+fbPID(
+    bEnable := TRUE,
+    rSetpoint := 75.0,
+    rActual := rTestValue,
+    rKp := 1.0,
+    rKi := 0.1,
+    rKd := 0.01,
+    rOutMax := 100.0,
+    rOutMin := 0.0,
+    tCycle := T#100MS,
+    bReset := FALSE
+);
+
+// 8. 滞后功能块示例
+fbHysteresis(
+    rInput := rTestValue,
+    rUpperLimit := 80.0,
+    rLowerLimit := 20.0,
+    bReset := FALSE
+);
+
+// 9. 数值缩放示例 - 将0-100缩放到4-20mA
+fbScaleValue(
+    rInput := rTestValue,
+    rInputMin := 0.0,
+    rInputMax := 100.0,
+    rOutputMin := 4.0,
+    rOutputMax := 20.0,
+    bLimitOutput := TRUE
+);
+
+// 10. 滤波器示例
+fbFilter(
+    rInput := rTestValue,
+    rFilterTime := 1.0,
+    tCycleTime := T#100MS,
+    bReset := FALSE
+);
+
+// 测试值变化
+rTestValue := rTestValue + 0.1;
+IF rTestValue > 100.0 THEN
+    rTestValue := 0.0;
+END_IF
+]]></ST>
     </Implementation>
   </POU>
 </TcPlcObject>

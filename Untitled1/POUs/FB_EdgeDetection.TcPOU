@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_EdgeDetection" Id="{d0e1f2a3-b4c5-6789-3456-890123456789}">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_EdgeDetection
+VAR_INPUT
+    bInput : BOOL;           // 输入信号
+    bReset : BOOL;           // 复位
+END_VAR
+VAR_OUTPUT
+    bRisingEdge : BOOL;      // 上升沿输出
+    bFallingEdge : BOOL;     // 下降沿输出
+    bAnyEdge : BOOL;         // 任意边沿输出
+    iEdgeCount : INT;        // 边沿计数
+END_VAR
+VAR
+    bLastInput : BOOL;       // 上次输入值
+END_VAR
+]]>
+    </Declaration>
+    <Implementation>
+      <ST><![CDATA[// 经典边沿检测功能块
+// 功能：检测上升沿、下降沿及边沿计数
+
+// 复位
+IF bReset THEN
+    bLastInput := FALSE;
+    bRisingEdge := FALSE;
+    bFallingEdge := FALSE;
+    bAnyEdge := FALSE;
+    iEdgeCount := 0;
+    RETURN;
+END_IF
+
+// 检测上升沿 (0->1)
+IF bInput AND NOT bLastInput THEN
+    bRisingEdge := TRUE;
+    bAnyEdge := TRUE;
+    iEdgeCount := iEdgeCount + 1;
+ELSE
+    bRisingEdge := FALSE;
+END_IF
+
+// 检测下降沿 (1->0)
+IF NOT bInput AND bLastInput THEN
+    bFallingEdge := TRUE;
+    bAnyEdge := TRUE;
+    iEdgeCount := iEdgeCount + 1;
+ELSE
+    bFallingEdge := FALSE;
+END_IF
+
+// 更新任意边沿标志
+IF NOT bRisingEdge AND NOT bFallingEdge THEN
+    bAnyEdge := FALSE;
+END_IF
+
+// 保存当前输入作为下次的上次值
+bLastInput := bInput;
+]]></ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>

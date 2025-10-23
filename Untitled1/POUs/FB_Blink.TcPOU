@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_Blink" Id="{a1b2c3d4-e5f6-7890-abcd-ef1234567890}">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_Blink
+VAR_INPUT
+    bEnable : BOOL;          // 启用闪烁
+    tOnTime : TIME;          // 高电平持续时间
+    tOffTime : TIME;         // 低电平持续时间
+END_VAR
+VAR_OUTPUT
+    bOutput : BOOL;          // 闪烁输出
+END_VAR
+VAR
+    tonOn : TON;             // 高电平定时器
+    tonOff : TON;            // 低电平定时器
+    bState : BOOL;           // 内部状态
+END_VAR
+]]>
+    </Declaration>
+    <Implementation>
+      <ST><![CDATA[// 经典闪烁功能块
+// 功能：根据设定的高电平和低电平时间生成闪烁信号
+
+IF bEnable THEN
+    // 高电平定时
+    tonOn(IN := bState, PT := tOnTime);
+    IF tonOn.Q THEN
+        bState := FALSE;
+        tonOn(IN := FALSE);
+    END_IF
+
+    // 低电平定时
+    tonOff(IN := NOT bState, PT := tOffTime);
+    IF tonOff.Q THEN
+        bState := TRUE;
+        tonOff(IN := FALSE);
+    END_IF
+
+    bOutput := bState;
+ELSE
+    bOutput := FALSE;
+    bState := FALSE;
+    tonOn(IN := FALSE);
+    tonOff(IN := FALSE);
+END_IF
+]]></ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>

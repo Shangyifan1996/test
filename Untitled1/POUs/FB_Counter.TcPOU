@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_Counter" Id="{b2c3d4e5-f6a7-8901-bcde-f12345678901}">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_Counter
+VAR_INPUT
+    bCountUp : BOOL;         // 上升沿计数
+    bCountDown : BOOL;       // 下降沿计数
+    bReset : BOOL;           // 复位计数器
+    iMaxValue : INT := 9999; // 最大计数值
+    iMinValue : INT := 0;    // 最小计数值
+END_VAR
+VAR_OUTPUT
+    iCount : INT;            // 当前计数值
+    bMaxReached : BOOL;      // 达到最大值
+    bMinReached : BOOL;      // 达到最小值
+END_VAR
+VAR
+    rTrigCountUp : R_TRIG;   // 上升沿检测
+    rTrigCountDown : R_TRIG; // 下升沿检测
+END_VAR
+]]>
+    </Declaration>
+    <Implementation>
+      <ST><![CDATA[// 经典计数器功能块
+// 功能：可上下计数，支持复位和限值检测
+
+// 复位计数器
+IF bReset THEN
+    iCount := iMinValue;
+    bMaxReached := FALSE;
+    bMinReached := TRUE;
+    RETURN;
+END_IF
+
+// 上升沿检测并计数
+rTrigCountUp(CLK := bCountUp);
+IF rTrigCountUp.Q THEN
+    IF iCount < iMaxValue THEN
+        iCount := iCount + 1;
+        bMinReached := FALSE;
+    END_IF
+END_IF
+
+// 下降沿检测并计数
+rTrigCountDown(CLK := bCountDown);
+IF rTrigCountDown.Q THEN
+    IF iCount > iMinValue THEN
+        iCount := iCount - 1;
+        bMaxReached := FALSE;
+    END_IF
+END_IF
+
+// 检测边界条件
+bMaxReached := (iCount >= iMaxValue);
+bMinReached := (iCount <= iMinValue);
+]]></ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>

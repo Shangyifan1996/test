@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_Hysteresis" Id="{a7b8c9d0-e1f2-3456-0123-567890123456}">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_Hysteresis
+VAR_INPUT
+    rInput : REAL;           // 输入值
+    rUpperLimit : REAL;      // 上限阈值
+    rLowerLimit : REAL;      // 下限阈值
+    bReset : BOOL;           // 复位
+END_VAR
+VAR_OUTPUT
+    bOutput : BOOL;          // 滞后输出
+END_VAR
+VAR
+    bState : BOOL;           // 内部状态
+END_VAR
+]]>
+    </Declaration>
+    <Implementation>
+      <ST><![CDATA[// 经典滞后功能块
+// 功能：实现带滞后的比较器，防止抖动
+
+// 复位
+IF bReset THEN
+    bState := FALSE;
+    bOutput := FALSE;
+    RETURN;
+END_IF
+
+// 滞后比较
+IF rInput >= rUpperLimit THEN
+    bState := TRUE;
+ELSIF rInput <= rLowerLimit THEN
+    bState := FALSE;
+END_IF
+// 如果输入值在上下限之间，保持当前状态
+
+bOutput := bState;
+]]></ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>

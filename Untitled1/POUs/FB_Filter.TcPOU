@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_Filter" Id="{c9d0e1f2-a3b4-5678-2345-789012345678}">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_Filter
+VAR_INPUT
+    rInput : REAL;           // 输入值
+    rFilterTime : REAL := 1.0; // 滤波时间常数(秒)
+    tCycleTime : TIME := T#100MS; // 扫描周期
+    bReset : BOOL;           // 复位
+END_VAR
+VAR_OUTPUT
+    rOutput : REAL;          // 滤波后的输出
+END_VAR
+VAR
+    rAlpha : REAL;           // 滤波系数
+    rCycleTimeSec : REAL;    // 周期时间(秒)
+    bFirstRun : BOOL := TRUE; // 首次运行标志
+END_VAR
+]]>
+    </Declaration>
+    <Implementation>
+      <ST><![CDATA[// 经典一阶低通滤波器功能块
+// 功能：使用指数移动平均实现平滑滤波
+
+// 复位或首次运行
+IF bReset OR bFirstRun THEN
+    rOutput := rInput;
+    bFirstRun := FALSE;
+    RETURN;
+END_IF
+
+// 计算周期时间(秒)
+rCycleTimeSec := TIME_TO_REAL(tCycleTime) / 1000.0;
+
+// 防止滤波时间过小
+IF rFilterTime < 0.001 THEN
+    rFilterTime := 0.001;
+END_IF
+
+// 计算滤波系数 (0到1之间)
+// alpha = T / (T + Tf)
+// T = 扫描周期, Tf = 滤波时间常数
+rAlpha := rCycleTimeSec / (rCycleTimeSec + rFilterTime);
+
+// 限制滤波系数范围
+IF rAlpha > 1.0 THEN
+    rAlpha := 1.0;
+ELSIF rAlpha < 0.0 THEN
+    rAlpha := 0.0;
+END_IF
+
+// 一阶滤波计算
+// Output(n) = Alpha * Input(n) + (1 - Alpha) * Output(n-1)
+rOutput := (rAlpha * rInput) + ((1.0 - rAlpha) * rOutput);
+]]></ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>

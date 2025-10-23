@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_Average" Id="{e5f6a7b8-c9d0-1234-ef01-345678901234}">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_Average
+VAR_INPUT
+    rInput : REAL;           // 输入值
+    iSamples : INT := 10;    // 采样数量
+    bReset : BOOL;           // 复位
+END_VAR
+VAR_OUTPUT
+    rAverage : REAL;         // 平均值输出
+    bReady : BOOL;           // 数据就绪
+END_VAR
+VAR
+    arBuffer : ARRAY[0..99] OF REAL;  // 数据缓冲区
+    iIndex : INT;            // 当前索引
+    iCount : INT;            // 已采样数量
+    rSum : REAL;             // 累加和
+    i : INT;                 // 循环变量
+END_VAR
+]]>
+    </Declaration>
+    <Implementation>
+      <ST><![CDATA[// 经典平均值计算功能块
+// 功能：计算指定样本数的移动平均值
+
+// 复位
+IF bReset THEN
+    FOR i := 0 TO 99 DO
+        arBuffer[i] := 0;
+    END_FOR
+    iIndex := 0;
+    iCount := 0;
+    rSum := 0;
+    rAverage := 0;
+    bReady := FALSE;
+    RETURN;
+END_IF
+
+// 限制采样数量
+IF iSamples < 1 THEN
+    iSamples := 1;
+ELSIF iSamples > 100 THEN
+    iSamples := 100;
+END_IF
+
+// 减去要被替换的旧值
+IF iCount >= iSamples THEN
+    rSum := rSum - arBuffer[iIndex];
+END_IF
+
+// 存储新值
+arBuffer[iIndex] := rInput;
+rSum := rSum + rInput;
+
+// 更新索引
+iIndex := iIndex + 1;
+IF iIndex >= iSamples THEN
+    iIndex := 0;
+END_IF
+
+// 更新计数
+IF iCount < iSamples THEN
+    iCount := iCount + 1;
+END_IF
+
+// 计算平均值
+IF iCount > 0 THEN
+    rAverage := rSum / INT_TO_REAL(iCount);
+    bReady := (iCount >= iSamples);
+ELSE
+    rAverage := 0;
+    bReady := FALSE;
+END_IF
+]]></ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>

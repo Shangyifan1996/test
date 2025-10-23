@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_MotorControl" Id="{c3d4e5f6-a7b8-9012-cdef-123456789012}">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_MotorControl
+VAR_INPUT
+    bStart : BOOL;           // 启动命令
+    bStop : BOOL;            // 停止命令
+    bEmergencyStop : BOOL;   // 急停命令
+    bForward : BOOL;         // 正转命令
+    bReverse : BOOL;         // 反转命令
+    tStartDelay : TIME := T#2S; // 启动延时
+END_VAR
+VAR_OUTPUT
+    bMotorRunning : BOOL;    // 电机运行中
+    bMotorForward : BOOL;    // 电机正转
+    bMotorReverse : BOOL;    // 电机反转
+    bError : BOOL;           // 故障状态
+    sErrorMsg : STRING(80);  // 故障信息
+END_VAR
+VAR
+    tonStartDelay : TON;     // 启动延时定时器
+    eState : INT;            // 状态机
+    rTrigStart : R_TRIG;     // 启动上升沿
+END_VAR
+]]>
+    </Declaration>
+    <Implementation>
+      <ST><![CDATA[// 经典电机控制功能块
+// 功能：支持启停、正反转、急停、延时启动
+
+// 急停处理
+IF bEmergencyStop THEN
+    eState := 0;
+    bMotorRunning := FALSE;
+    bMotorForward := FALSE;
+    bMotorReverse := FALSE;
+    bError := TRUE;
+    sErrorMsg := '急停触发';
+    tonStartDelay(IN := FALSE);
+    RETURN;
+END_IF
+
+// 状态机
+CASE eState OF
+    0: // 停止状态
+        bMotorRunning := FALSE;
+        bMotorForward := FALSE;
+        bMotorReverse := FALSE;
+        bError := FALSE;
+        sErrorMsg := '';
+
+        rTrigStart(CLK := bStart);
+        IF rTrigStart.Q AND NOT bStop THEN
+            // 检查方向互锁
+            IF bForward AND bReverse THEN
+                bError := TRUE;
+                sErrorMsg := '方向命令冲突';
+            ELSIF NOT bForward AND NOT bReverse THEN
+                bError := TRUE;
+                sErrorMsg := '未选择方向';
+            ELSE
+                eState := 1;
+                tonStartDelay(IN := TRUE, PT := tStartDelay);
+            END_IF
+        END_IF
+
+    1: // 启动延时状态
+        tonStartDelay(IN := TRUE);
+        IF tonStartDelay.Q THEN
+            eState := 2;
+            tonStartDelay(IN := FALSE);
+        END_IF
+
+        IF bStop THEN
+            eState := 0;
+            tonStartDelay(IN := FALSE);
+        END_IF
+
+    2: // 运行状态
+        bMotorRunning := TRUE;
+        bMotorForward := bForward;
+        bMotorReverse := bReverse;
+
+        IF bStop THEN
+            eState := 0;
+        END_IF
+
+        // 运行中方向切换检查
+        IF bForward AND bReverse THEN
+            eState := 0;
+            bError := TRUE;
+            sErrorMsg := '运行中方向冲突';
+        END_IF
+END_CASE
+]]></ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>
