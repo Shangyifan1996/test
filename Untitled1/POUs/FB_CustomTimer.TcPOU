@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_CustomTimer" Id="{b2c3d4e5-2345-6789-abcd-ef0123456789}">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_CustomTimer
+VAR_INPUT
+    bStart      : BOOL;         // Start timer
+    bStop       : BOOL;         // Stop timer
+    bReset      : BOOL;         // Reset timer
+    tSetTime    : TIME := T#1S; // Set time duration
+END_VAR
+
+VAR_OUTPUT
+    bRunning    : BOOL;         // Timer is running
+    bDone       : BOOL;         // Timer completed
+    tElapsed    : TIME;         // Elapsed time
+    tRemaining  : TIME;         // Remaining time
+    rProgress   : REAL;         // Progress percentage (0-100)
+END_VAR
+
+VAR
+    tStartTime  : TIME;         // Start timestamp
+    fbTON       : TON;          // Internal TON timer
+END_VAR
+]]>
+    </Declaration>
+    <Implementation>
+      <ST><![CDATA[// Reset timer
+IF bReset THEN
+    bRunning := FALSE;
+    bDone := FALSE;
+    tElapsed := T#0S;
+    tRemaining := tSetTime;
+    rProgress := 0.0;
+    fbTON(IN := FALSE);
+    RETURN;
+END_IF
+
+// Stop timer
+IF bStop THEN
+    bRunning := FALSE;
+    fbTON(IN := FALSE);
+    RETURN;
+END_IF
+
+// Start timer
+IF bStart AND NOT bRunning THEN
+    bRunning := TRUE;
+    bDone := FALSE;
+    tElapsed := T#0S;
+    rProgress := 0.0;
+END_IF
+
+// Timer logic
+IF bRunning THEN
+    fbTON(IN := TRUE, PT := tSetTime);
+
+    tElapsed := fbTON.ET;
+    tRemaining := tSetTime - tElapsed;
+
+    // Calculate progress percentage
+    IF TIME_TO_DWORD(tSetTime) > 0 THEN
+        rProgress := (TIME_TO_DWORD(tElapsed) * 100.0) / TIME_TO_DWORD(tSetTime);
+    END_IF
+
+    // Check if done
+    IF fbTON.Q THEN
+        bDone := TRUE;
+        bRunning := FALSE;
+        rProgress := 100.0;
+        tRemaining := T#0S;
+    END_IF
+ELSE
+    fbTON(IN := FALSE);
+END_IF
+]]>
+      </ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>

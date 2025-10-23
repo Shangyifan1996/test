@@ -1,0 +1,210 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_TestRunner" Id="{f6a7b8c9-6789-abcd-ef01-234567890123}">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_TestRunner
+VAR_INPUT
+    bRunTests   : BOOL;     // Start running all tests
+    bResetTests : BOOL;     // Reset test results
+END_VAR
+
+VAR_OUTPUT
+    stResults   : ST_TestResults; // Test results
+END_VAR
+
+VAR
+    // Test state machine
+    eTestState  : (INIT, TEST_COUNTER, TEST_TIMER, TEST_STATEMACHINE, COMPLETE);
+    iTestStep   : INT;
+    fbTestTimer : TON;
+
+    // FB instances for testing
+    fbCounter   : FB_Counter;
+    fbTimer     : FB_CustomTimer;
+    fbStateMachine : FB_StateMachine;
+
+    // Test variables
+    iCycleCount : INT;
+    bTestFlag   : BOOL;
+END_VAR
+]]>
+    </Declaration>
+    <Implementation>
+      <ST><![CDATA[// Reset tests
+IF bResetTests THEN
+    eTestState := INIT;
+    iTestStep := 0;
+    stResults.iTestsTotal := 0;
+    stResults.iTestsPassed := 0;
+    stResults.iTestsFailed := 0;
+    stResults.bTestRunning := FALSE;
+    stResults.bAllTestsPassed := FALSE;
+    stResults.bCounterTest := FALSE;
+    stResults.bTimerTest := FALSE;
+    stResults.bStateMachineTest := FALSE;
+    stResults.sCurrentTest := '';
+    stResults.sLastError := '';
+    iCycleCount := 0;
+    RETURN;
+END_IF
+
+// Run tests when triggered
+IF NOT bRunTests THEN
+    RETURN;
+END_IF
+
+stResults.bTestRunning := TRUE;
+
+// Test state machine
+CASE eTestState OF
+    INIT:
+        stResults.iTestsTotal := 3;
+        stResults.sCurrentTest := 'Initializing tests...';
+        iTestStep := 0;
+        eTestState := TEST_COUNTER;
+
+    TEST_COUNTER:
+        stResults.sCurrentTest := 'Testing Counter FB';
+
+        CASE iTestStep OF
+            0: // Reset counter
+                fbCounter(bReset := TRUE);
+                IF fbCounter.iCount = 0 THEN
+                    iTestStep := 1;
+                END_IF
+
+            1: // Enable and count up
+                fbCounter(bEnable := TRUE, bReset := FALSE, bCountUp := TRUE, bCountDown := FALSE, iMax := 10);
+                iCycleCount := iCycleCount + 1;
+                IF iCycleCount > 5 THEN
+                    IF fbCounter.iCount >= 5 THEN
+                        iTestStep := 2;
+                        iCycleCount := 0;
+                    ELSE
+                        stResults.sLastError := 'Counter: Count up failed';
+                        stResults.iTestsFailed := stResults.iTestsFailed + 1;
+                        eTestState := TEST_TIMER;
+                        iTestStep := 0;
+                    END_IF
+                END_IF
+
+            2: // Count down
+                fbCounter(bEnable := TRUE, bCountUp := FALSE, bCountDown := TRUE);
+                iCycleCount := iCycleCount + 1;
+                IF iCycleCount > 5 THEN
+                    IF fbCounter.iCount < 5 THEN
+                        stResults.bCounterTest := TRUE;
+                        stResults.iTestsPassed := stResults.iTestsPassed + 1;
+                        eTestState := TEST_TIMER;
+                        iTestStep := 0;
+                        iCycleCount := 0;
+                    ELSE
+                        stResults.sLastError := 'Counter: Count down failed';
+                        stResults.iTestsFailed := stResults.iTestsFailed + 1;
+                        eTestState := TEST_TIMER;
+                        iTestStep := 0;
+                    END_IF
+                END_IF
+        END_CASE
+
+    TEST_TIMER:
+        stResults.sCurrentTest := 'Testing Timer FB';
+
+        CASE iTestStep OF
+            0: // Reset timer
+                fbTimer(bReset := TRUE);
+                IF NOT fbTimer.bRunning AND NOT fbTimer.bDone THEN
+                    iTestStep := 1;
+                END_IF
+
+            1: // Start timer
+                fbTimer(bStart := TRUE, bReset := FALSE, tSetTime := T#500MS);
+                IF fbTimer.bRunning THEN
+                    iTestStep := 2;
+                    iCycleCount := 0;
+                END_IF
+
+            2: // Wait for completion
+                fbTimer(bStart := FALSE);
+                iCycleCount := iCycleCount + 1;
+
+                // Timeout after 100 cycles (1 second at 10ms cycle)
+                IF fbTimer.bDone OR iCycleCount > 100 THEN
+                    IF fbTimer.bDone AND fbTimer.rProgress >= 99.0 THEN
+                        stResults.bTimerTest := TRUE;
+                        stResults.iTestsPassed := stResults.iTestsPassed + 1;
+                    ELSE
+                        stResults.sLastError := 'Timer: Did not complete in time';
+                        stResults.iTestsFailed := stResults.iTestsFailed + 1;
+                    END_IF
+                    eTestState := TEST_STATEMACHINE;
+                    iTestStep := 0;
+                    iCycleCount := 0;
+                END_IF
+        END_CASE
+
+    TEST_STATEMACHINE:
+        stResults.sCurrentTest := 'Testing State Machine FB';
+
+        CASE iTestStep OF
+            0: // Initial state should be Idle
+                fbStateMachine(bStart := FALSE, bStop := FALSE, bReset := FALSE);
+                IF fbStateMachine.eState = E_MachineState.Idle THEN
+                    iTestStep := 1;
+                END_IF
+
+            1: // Start machine
+                fbStateMachine(bStart := TRUE);
+                iCycleCount := iCycleCount + 1;
+                IF fbStateMachine.eState = E_MachineState.Starting OR iCycleCount > 10 THEN
+                    iTestStep := 2;
+                    iCycleCount := 0;
+                END_IF
+
+            2: // Wait for running state
+                fbStateMachine(bStart := FALSE);
+                iCycleCount := iCycleCount + 1;
+                IF fbStateMachine.eState = E_MachineState.Running OR iCycleCount > 250 THEN
+                    IF fbStateMachine.eState = E_MachineState.Running THEN
+                        iTestStep := 3;
+                    ELSE
+                        stResults.sLastError := 'StateMachine: Did not reach Running state';
+                        stResults.iTestsFailed := stResults.iTestsFailed + 1;
+                        eTestState := COMPLETE;
+                    END_IF
+                    iCycleCount := 0;
+                END_IF
+
+            3: // Stop machine
+                fbStateMachine(bStop := TRUE);
+                iCycleCount := iCycleCount + 1;
+                IF fbStateMachine.eState = E_MachineState.Stopping OR iCycleCount > 10 THEN
+                    iTestStep := 4;
+                    iCycleCount := 0;
+                END_IF
+
+            4: // Wait for idle state
+                fbStateMachine(bStop := FALSE);
+                iCycleCount := iCycleCount + 1;
+                IF fbStateMachine.eState = E_MachineState.Idle OR iCycleCount > 150 THEN
+                    IF fbStateMachine.eState = E_MachineState.Idle THEN
+                        stResults.bStateMachineTest := TRUE;
+                        stResults.iTestsPassed := stResults.iTestsPassed + 1;
+                    ELSE
+                        stResults.sLastError := 'StateMachine: Did not return to Idle';
+                        stResults.iTestsFailed := stResults.iTestsFailed + 1;
+                    END_IF
+                    eTestState := COMPLETE;
+                    iCycleCount := 0;
+                END_IF
+        END_CASE
+
+    COMPLETE:
+        stResults.sCurrentTest := 'Tests Complete';
+        stResults.bTestRunning := FALSE;
+        stResults.bAllTestsPassed := (stResults.iTestsFailed = 0) AND (stResults.iTestsPassed = stResults.iTestsTotal);
+END_CASE
+]]>
+      </ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>

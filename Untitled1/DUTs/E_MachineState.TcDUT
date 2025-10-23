@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <DUT Name="E_MachineState" Id="{d4e5f6a7-4567-89ab-cdef-012345678901}">
+    <Declaration><![CDATA[{attribute 'qualified_only'}
+{attribute 'strict'}
+TYPE E_MachineState :
+(
+    Idle        := 0,   // Machine is idle
+    Starting    := 1,   // Machine is starting
+    Running     := 2,   // Machine is running
+    Paused      := 3,   // Machine is paused
+    Stopping    := 4,   // Machine is stopping
+    Error       := 5,   // Error state
+    Emergency   := 6    // Emergency stop
+) := Idle;
+END_TYPE
+]]>
+    </Declaration>
+  </DUT>
+</TcPlcObject>

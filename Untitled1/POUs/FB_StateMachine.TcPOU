@@ -1,0 +1,129 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_StateMachine" Id="{c3d4e5f6-3456-789a-bcde-f01234567890}">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_StateMachine
+VAR_INPUT
+    bStart      : BOOL;     // Start command
+    bStop       : BOOL;     // Stop command
+    bReset      : BOOL;     // Reset command
+    bPause      : BOOL;     // Pause command
+    bEmergency  : BOOL;     // Emergency stop
+END_VAR
+
+VAR_OUTPUT
+    eState      : E_MachineState; // Current state
+    bBusy       : BOOL;     // Machine is busy
+    bError      : BOOL;     // Error occurred
+    sStateText  : STRING;   // State description
+    iCycles     : INT;      // Cycle counter
+END_VAR
+
+VAR
+    eLastState  : E_MachineState;
+    fbTimer     : TON;
+END_VAR
+]]>
+    </Declaration>
+    <Implementation>
+      <ST><![CDATA[// Emergency stop - highest priority
+IF bEmergency THEN
+    eState := E_MachineState.Emergency;
+    bError := TRUE;
+    bBusy := FALSE;
+    sStateText := 'EMERGENCY STOP';
+    RETURN;
+END_IF
+
+// State machine logic
+CASE eState OF
+    E_MachineState.Idle:
+        bBusy := FALSE;
+        bError := FALSE;
+        sStateText := 'Idle - Ready to start';
+
+        IF bStart THEN
+            eState := E_MachineState.Starting;
+        END_IF
+
+    E_MachineState.Starting:
+        bBusy := TRUE;
+        sStateText := 'Starting...';
+
+        // Simulate startup time
+        fbTimer(IN := TRUE, PT := T#2S);
+        IF fbTimer.Q THEN
+            fbTimer(IN := FALSE);
+            eState := E_MachineState.Running;
+            iCycles := 0;
+        END_IF
+
+        IF bStop THEN
+            fbTimer(IN := FALSE);
+            eState := E_MachineState.Stopping;
+        END_IF
+
+    E_MachineState.Running:
+        bBusy := TRUE;
+        sStateText := 'Running';
+        iCycles := iCycles + 1;
+
+        IF bStop THEN
+            eState := E_MachineState.Stopping;
+        ELSIF bPause THEN
+            eState := E_MachineState.Paused;
+        END_IF
+
+    E_MachineState.Paused:
+        bBusy := TRUE;
+        sStateText := 'Paused';
+
+        IF bStart THEN
+            eState := E_MachineState.Running;
+        ELSIF bStop THEN
+            eState := E_MachineState.Stopping;
+        END_IF
+
+    E_MachineState.Stopping:
+        bBusy := TRUE;
+        sStateText := 'Stopping...';
+
+        // Simulate shutdown time
+        fbTimer(IN := TRUE, PT := T#1S);
+        IF fbTimer.Q THEN
+            fbTimer(IN := FALSE);
+            eState := E_MachineState.Idle;
+        END_IF
+
+    E_MachineState.Emergency:
+        bBusy := FALSE;
+        bError := TRUE;
+        sStateText := 'EMERGENCY - Reset required';
+
+        IF bReset AND NOT bEmergency THEN
+            bError := FALSE;
+            eState := E_MachineState.Idle;
+        END_IF
+
+    E_MachineState.Error:
+        bBusy := FALSE;
+        bError := TRUE;
+        sStateText := 'Error - Reset required';
+
+        IF bReset THEN
+            bError := FALSE;
+            eState := E_MachineState.Idle;
+        END_IF
+END_CASE
+
+// Reset command
+IF bReset AND NOT bEmergency THEN
+    IF eState = E_MachineState.Error OR eState = E_MachineState.Emergency THEN
+        eState := E_MachineState.Idle;
+        bError := FALSE;
+    END_IF
+END_IF
+]]>
+      </ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>
